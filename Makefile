@@ -2,7 +2,7 @@
 # Projet Thomson MO5 - Build & SDK Management
 # ==========================================================
 
-PROGRAM      := SPACEINVADERS
+PROGRAM      := SIGAME
 
 # Version du SDK compatible avec ce projet (format MAJEUR.MINEUR.x)
 SDK_COMPAT_VERSION := 1.2
@@ -43,8 +43,9 @@ CONVERT_OPTS ?=
 
 # Fichiers sources du projet
 # A compléter avec vos .c et .h
-PROJ_SRC     := $(SRC_DIR)/main.c
-PROJ_HDR     := 
+PROJ_SRC     := $(SRC_DIR)/main.c $(SRC_DIR)/game.c
+PROJ_HDR     := $(INCLUDE_DIR)/game.h \
+				$(INCLUDE_DIR)/assets/player.h $(INCLUDE_DIR)/assets/bullet_player.h
 
 # ==========================================================
 # TARGETS
