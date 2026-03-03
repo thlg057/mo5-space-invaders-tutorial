@@ -1,0 +1,55 @@
+#ifndef SPRITE_BULLET_PLAYER_H
+#define SPRITE_BULLET_PLAYER_H
+
+// =============================================
+// Sprite: bullet_player
+// Source: bullet_player.png
+// Taille: 8x8 pixels (1 octets x 8 lignes)
+// Format: 1 octet = 8 pixels (1 bit/pixel)
+// Contrainte: 2 couleurs par groupe de 8 pixels
+// =============================================
+
+#define SPRITE_BULLET_PLAYER_WIDTH_BYTES 1
+#define SPRITE_BULLET_PLAYER_HEIGHT 8
+
+// Données de FORME (bitmap: 1=forme, 0=fond)
+unsigned char sprite_bullet_player_form[8] = {
+    0x18,  // 0  ---██---
+    0x18,  // 1  ---██---
+    0x18,  // 2  ---██---
+    0x18,  // 3  ---██---
+    0x18,  // 4  ---██---
+    0x18,  // 5  ---██---
+    0x18,  // 6  ---██---
+    0x18  // 7  ---██---
+};
+
+// Données de COULEUR (attributs par groupe de 8 pixels)
+// Format: FFFFBBBB (Forme bits 4-7, Fond bits 0-3)
+unsigned char sprite_bullet_player_color[8] = {
+    0x70,  // 0
+    0x70,  // 1
+    0x60,  // 2
+    0x60,  // 3
+    0x60,  // 4
+    0x60,  // 5
+    0x60,  // 6
+    0x60  // 7
+};
+
+// Taille totale: 8 octets par tableau
+// Blocs multi-couleurs: 8 / 8 (100.0%)
+
+// Combinaisons de couleurs utilisées:
+//   Fond=C_BLACK, Forme=C_CYAN : 6 blocs de 8 pixels
+//   Fond=C_BLACK, Forme=C_WHITE : 2 blocs de 8 pixels
+
+// Macro d'initialisation pour MO5_Sprite (voir mo5_sprite.h)
+#define SPRITE_BULLET_PLAYER_INIT \
+    { sprite_bullet_player_form, sprite_bullet_player_color, \
+      SPRITE_BULLET_PLAYER_WIDTH_BYTES, SPRITE_BULLET_PLAYER_HEIGHT }
+
+// Utilisation:
+//   MO5_Sprite sprite_bullet_player = SPRITE_BULLET_PLAYER_INIT;
+
+#endif // SPRITE_BULLET_PLAYER_H
