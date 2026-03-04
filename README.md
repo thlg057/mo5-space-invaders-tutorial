@@ -52,6 +52,8 @@ make convert IMG=./assets/player.png
 # genere include/assets/player.h
 ```
 
+Pour ce projet, on utilisera les fonctions de mo5_sprite_bg.h, qui permettent de gérer la transparence (le fond est celui du décor)
+
 ### Sprites disponibles
 
 | Fichier | Taille | Description |

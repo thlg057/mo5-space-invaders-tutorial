@@ -28,60 +28,20 @@
 #include "assets/player.h"
 #include "assets/bullet_player.h"
 
-// ============================================================================
-// CONSTANTS
-// ============================================================================
-
 #define MAX_BULLETS_PLAYER  3
 #define PLAYER_SPEED_X      1
 #define BULLET_SPEED_Y      4
 
-#define INPUT_NONE          0x00
-#define INPUT_LEFT          0x01
-#define INPUT_RIGHT         0x02
-#define INPUT_FIRE          0x04
-
-// ============================================================================
-// GAME STRUCTURES
-// ============================================================================
-
-/**
- * Active bullet — uses MO5_Actor for rendering.
- * active = 0: slot is free.
- */
 typedef struct {
     MO5_Actor     actor;
-    unsigned char active;
+    unsigned char active; //0 -> slot dispo
 } BulletActor;
-
-// ============================================================================
-// SPRITES & STATE  (privés à cette unité de compilation)
-// ============================================================================
 
 static MO5_Sprite player_sprite        = SPRITE_PLAYER_INIT;
 static MO5_Sprite bullet_player_sprite = SPRITE_BULLET_PLAYER_INIT;
 
 static MO5_Actor   player_actor;
 static BulletActor bullets_player[MAX_BULLETS_PLAYER];
-
-// ============================================================================
-// INPUT
-// ============================================================================
-
-static unsigned char game_read_input(void)
-{
-    char key = mo5_getchar();
-
-    if (key == 'q' || key == 'Q') return INPUT_LEFT;
-    if (key == 'd' || key == 'D') return INPUT_RIGHT;
-    if (key == ' ') return INPUT_FIRE;
-
-    return INPUT_NONE;
-}
-
-// ============================================================================
-// PLAYER
-// ============================================================================
 
 static void game_init_player(void)
 {
@@ -97,27 +57,6 @@ static void game_init_player(void)
         bullets_player[i].actor.sprite = &bullet_player_sprite;
     }
 }
-
-static void game_update_player(unsigned char input)
-{
-    const unsigned char max_x = SCREEN_WIDTH_BYTES - SPRITE_PLAYER_WIDTH_BYTES;
-    unsigned char new_x = player_actor.pos.x;
-
-    if (input == INPUT_LEFT) {
-        new_x = (new_x >= PLAYER_SPEED_X) ? new_x - PLAYER_SPEED_X : 0;
-        mo5_actor_move_bg(&player_actor, new_x, player_actor.pos.y);
-        return;
-    }
-
-    if (input == INPUT_RIGHT) {
-        new_x = (new_x + PLAYER_SPEED_X <= max_x) ? new_x + PLAYER_SPEED_X : max_x;
-        mo5_actor_move_bg(&player_actor, new_x, player_actor.pos.y);
-    }
-}
-
-// ============================================================================
-// BULLETS
-// ============================================================================
 
 static void game_fire_bullet(void)
 {
@@ -136,12 +75,6 @@ static void game_fire_bullet(void)
     }
 }
 
-static void game_handle_fire(unsigned char input)
-{
-    if (input == INPUT_FIRE)
-        game_fire_bullet();
-}
-
 static void game_update_bullets(void)
 {
     unsigned char i;
@@ -153,29 +86,39 @@ static void game_update_bullets(void)
             mo5_actor_move_bg(&bullets_player[i].actor,
                               bullets_player[i].actor.pos.x,
                               bullets_player[i].actor.pos.y - BULLET_SPEED_Y);
-        } else {
-            mo5_actor_clear_bg(&bullets_player[i].actor);
-            bullets_player[i].active = 0;
+            continue;
+        
         }
+
+        mo5_actor_clear_bg(&bullets_player[i].actor);
+        bullets_player[i].active = 0;
     }
 }
 
-// ============================================================================
-// GAME LOOP  (seule fonction publique)
-// ============================================================================
-
 void game_loop(void)
 {
-    unsigned char input;
-
+    const unsigned char max_x = SCREEN_WIDTH_BYTES - SPRITE_PLAYER_WIDTH_BYTES;
     game_init_player();
     mo5_actor_draw_bg(&player_actor);
 
+    unsigned char input;
+    unsigned char new_x = player_actor.pos.x;
     while (1) {
         mo5_wait_vbl();
-        input = game_read_input();
-        game_update_player(input);
-        game_handle_fire(input);
+        char key = mo5_getchar();
+        switch (key) {
+            case 'Q':
+                new_x = (new_x >= PLAYER_SPEED_X) ? new_x - PLAYER_SPEED_X : 0;
+                break;
+            case 'D':
+                new_x = (new_x + PLAYER_SPEED_X <= max_x) ? new_x + PLAYER_SPEED_X : max_x;
+                break;
+            case ' ':
+                game_fire_bullet();
+                break;
+        }
+
         game_update_bullets();
+        mo5_actor_move_bg(&player_actor, new_x, player_actor.pos.y);
     }
 }
