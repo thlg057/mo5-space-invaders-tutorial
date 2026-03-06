@@ -31,29 +31,29 @@
 
 #define DRAWING_BLOC_HIGH   6
 #define MAX_BULLETS_PLAYER  3
-#define PLAYER_SPEED_X      1
-#define BULLET_SPEED_Y      4
+#define PLAYER_SPEED_X      1 //octet
+#define BULLET_SPEED_Y      4 //pixels
 #define PLAYER_MAX_LIFE     3
 
 typedef struct {
     MO5_Actor     actor;
     unsigned char active; //0 -> slot dispo
-} BulletActor;
+} ActiveActor;
 
 static MO5_Sprite player_sprite        = SPRITE_PLAYER_INIT;
 static MO5_Sprite bullet_player_sprite = SPRITE_BULLET_PLAYER_INIT;
 
-static MO5_Actor   player_actor;
-static BulletActor bullets_player[MAX_BULLETS_PLAYER];
+static MO5_Actor   player;
+static ActiveActor bullets_player[MAX_BULLETS_PLAYER];
 
 static void game_init_player(void)
 {
     unsigned char i;
 
-    player_actor.sprite  = &player_sprite;
-    player_actor.pos.x   = (SCREEN_WIDTH_BYTES - SPRITE_PLAYER_WIDTH_BYTES) / 2;
-    player_actor.pos.y   = SCREEN_HEIGHT - SPRITE_PLAYER_HEIGHT;
-    player_actor.old_pos = player_actor.pos;
+    player.sprite  = &player_sprite;
+    player.pos.x   = (SCREEN_WIDTH_BYTES - SPRITE_PLAYER_WIDTH_BYTES) / 2;
+    player.pos.y   = SCREEN_HEIGHT - SPRITE_PLAYER_HEIGHT;
+    player.old_pos = player.pos;
 
     for (i = 0; i < MAX_BULLETS_PLAYER; i++) {
         bullets_player[i].active       = 0;
@@ -68,8 +68,8 @@ static void game_fire_bullet(void)
     for (i = 0; i < MAX_BULLETS_PLAYER; i++) {
         if (bullets_player[i].active) continue;
 
-        bullets_player[i].actor.pos.x   = player_actor.pos.x + 1;
-        bullets_player[i].actor.pos.y   = player_actor.pos.y - SPRITE_BULLET_PLAYER_HEIGHT;
+        bullets_player[i].actor.pos.x   = player.pos.x + 1;
+        bullets_player[i].actor.pos.y   = player.pos.y - SPRITE_BULLET_PLAYER_HEIGHT;
         bullets_player[i].actor.old_pos = bullets_player[i].actor.pos;
         bullets_player[i].active        = 1;
 
@@ -90,7 +90,6 @@ static void game_update_bullets(void)
                               bullets_player[i].actor.pos.x,
                               bullets_player[i].actor.pos.y - BULLET_SPEED_Y);
             continue;
-        
         }
 
         mo5_actor_clear_bg(&bullets_player[i].actor);
@@ -98,7 +97,7 @@ static void game_update_bullets(void)
     }
 }
 
-static void display_score(unsigned char score) {
+static void game_display_score(unsigned char score) {
     // sprintf fait planter le programme.
     // char buf[12];
     // sprintf(buf, "SCORE: %03u", score);
@@ -113,7 +112,7 @@ static void display_score(unsigned char score) {
     mo5_font6_puts(6, 0, buf, C_BLUE);
 }
 
-static void display_live(unsigned char live) {
+static void game_display_live(unsigned char live) {
     // sprintf fait planter le programme.
     // char buf[7];
     // sprintf(buf, "VIE: %u", live);
@@ -125,19 +124,43 @@ static void display_live(unsigned char live) {
     mo5_font6_puts(39, 0, buf, C_BLUE);
 }
 
+static void game_redraw_enemies_and_bullets() {
+    unsigned char i;
+
+    for (i = 0; i < MAX_BULLETS_PLAYER; i++) {
+        if (bullets_player[i].active) {
+            mo5_actor_draw_bg(&bullets_player[i].actor);
+        }
+    }
+}
+
+static unsigned char game_quit_game() {
+    mo5_fill_rect(7, 90, 25, 26, GAME_MESSAGE_BACKGROUND_COLOR);
+    mo5_font6_puts(8, 100, "Quitter la partie ? Y/N", GAME_MESSAGE_COLOR);
+    char key = mo5_wait_for_key();
+    if (key == 'Y') {
+        return 1;
+    }
+    
+    mo5_fill_rect(7, 90, 25, 26, GAME_BACKGROUND_COLOR);
+    game_redraw_enemies_and_bullets();
+    return 0;
+}
+
 void game_loop(void)
 {
     const unsigned char max_x = SCREEN_WIDTH_BYTES - SPRITE_PLAYER_WIDTH_BYTES;
     unsigned char score = 0;
     unsigned char live = PLAYER_MAX_LIFE;
+    unsigned char i;
     game_init_player();
-    mo5_actor_draw_bg(&player_actor);
+    mo5_actor_draw_bg(&player);
 
-    display_score(score);
-    display_live(live);
+    game_display_score(score);
+    game_display_live(live);
 
     unsigned char input;
-    unsigned char new_x = player_actor.pos.x;
+    unsigned char new_x = player.pos.x;
     while (1) {
         mo5_wait_vbl();
         char key = mo5_getchar();
@@ -151,9 +174,15 @@ void game_loop(void)
             case ' ':
                 game_fire_bullet();
                 break;
+            case 'B':
+                if (game_quit_game() == 1) {
+                    return;
+                }
+
+                break;
         }
 
         game_update_bullets();
-        mo5_actor_move_bg(&player_actor, new_x, player_actor.pos.y);
+        mo5_actor_move_bg(&player, new_x, player.pos.y);
     }
 }
