@@ -27,7 +27,7 @@
 #include "game.h"
 
 int main(void) {
-    mo5_video_init(COLOR(C_BLACK, C_BLACK));
+    mo5_video_init(COLOR(GAME_BACKGROUND_COLOR, GAME_BACKGROUND_COLOR));
     game_loop();
     return 0;
 }
