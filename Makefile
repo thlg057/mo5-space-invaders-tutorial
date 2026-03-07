@@ -2,7 +2,7 @@
 # Projet Thomson MO5 - Build & SDK Management
 # ==========================================================
 
-PROGRAM      := SPRITE
+PROGRAM      := GAMESI
 
 # Version du SDK compatible avec ce projet (format MAJEUR.MINEUR.x)
 SDK_COMPAT_VERSION := 1.2
@@ -45,7 +45,7 @@ CONVERT_OPTS ?=
 # A compléter avec vos .c et .h
 PROJ_SRC     := $(SRC_DIR)/main.c $(SRC_DIR)/game.c
 PROJ_HDR     := $(INCLUDE_DIR)/game.h \
-				$(INCLUDE_DIR)/assets/player.h
+				$(INCLUDE_DIR)/assets/player.h $(INCLUDE_DIR)/assets/bullet_player.h
 
 # ==========================================================
 # TARGETS
