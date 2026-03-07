@@ -46,7 +46,7 @@ CONVERT_OPTS ?=
 PROJ_SRC     := $(SRC_DIR)/main.c $(SRC_DIR)/game.c
 PROJ_HDR     := $(INCLUDE_DIR)/game.h \
 				$(INCLUDE_DIR)/assets/player.h $(INCLUDE_DIR)/assets/bullet_player.h \
-				$(INCLUDE_DIR)/assets/enemy.h
+				$(INCLUDE_DIR)/assets/enemy.h $(INCLUDE_DIR)/assets/bullet_enemy.h
 
 # ==========================================================
 # TARGETS
