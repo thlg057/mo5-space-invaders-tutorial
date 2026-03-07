@@ -44,7 +44,8 @@ CONVERT_OPTS ?=
 # Fichiers sources du projet
 # A compléter avec vos .c et .h
 PROJ_SRC     := $(SRC_DIR)/main.c $(SRC_DIR)/game.c
-PROJ_HDR     := $(INCLUDE_DIR)/game.h
+PROJ_HDR     := $(INCLUDE_DIR)/game.h \
+				$(INCLUDE_DIR)/assets/player.h
 
 # ==========================================================
 # TARGETS
