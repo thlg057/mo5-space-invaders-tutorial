@@ -150,6 +150,13 @@ static unsigned char game_quit_game() {
     return 0;
 }
 
+void game_ready_to_start() {
+    mo5_fill_rect(7, 90, 26, 26, GAME_MESSAGE_BACKGROUND_COLOR);
+    mo5_font6_puts(8, 100, "Press space bar to start", GAME_MESSAGE_COLOR);
+    mo5_wait_key(' ');
+    mo5_fill_rect(7, 90, 26, 26, GAME_BACKGROUND_COLOR);
+}
+
 void game_loop(void) {
     const unsigned char max_x = SCREEN_WIDTH_BYTES - SPRITE_PLAYER_WIDTH_BYTES;;
     char key;
@@ -165,6 +172,7 @@ void game_loop(void) {
     game_display_score(score);
     game_display_live(live);
 
+    game_ready_to_start();
     while(1) {
         key = mo5_getchar();
         switch (key) {
