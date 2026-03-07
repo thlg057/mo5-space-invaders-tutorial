@@ -23,44 +23,9 @@
  */
 
 #include <cmoc.h>
-#include <mo5_defs.h>
-#include <mo5_stdio.h>
-
-/* ========================================
- * CONSTANTS
- * ======================================== */
-
-#define MAX_NAME_LENGTH 30
-
-/* ========================================
- * MAIN PROGRAM
- * ======================================== */
 
 int main(void)
 {
-    char name[MAX_NAME_LENGTH + 1];  // +1 for null terminator
-
-    // Infinite loop to greet multiple people
-    while (1) {
-        // Clear screen for clean display
-        clrscr();
-        memset(name, 0, MAX_NAME_LENGTH + 1);
-        // Display welcome prompt
-        fputs("What is your first name?\r\n");
-
-        // Read user input
-        int size = fgets(name, MAX_NAME_LENGTH);
-        fputs("\r\n");
-
-        // Display personalized greeting
-        fputs("Hello "); fputs(name); fputs("!\r\n");
-
-        // Wait for 'Y' key before next iteration
-        fputs("\r\n");
-        fputs("Press Y to continue...");
-        mo5_wait_key('Y');
-    }
-
     return 0;
 }
 
