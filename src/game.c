@@ -99,6 +99,16 @@ static void game_update_palyer_bullets(void)
     }
 }
 
+static void game_redraw_enemies_and_bullets() {
+    unsigned char i;
+
+    for (i = 0; i < MAX_BULLETS_PLAYER; i++) {
+        if (bullets_player[i].active) {
+            mo5_actor_draw_bg(&bullets_player[i].actor);
+        }
+    }
+}
+
 static void game_display_score(unsigned char score) {
     // sprintf fait planter le programme.
     // char buf[12];
@@ -124,6 +134,20 @@ static void game_display_live(unsigned char live) {
     buf[1] = '\0';
     mo5_font6_puts(35, 0, "VIE:", C_BLUE);
     mo5_font6_puts(39, 0, buf, C_BLUE);
+}
+
+static unsigned char game_quit_game() {
+    char key;
+    mo5_fill_rect(7, 90, 25, 26, GAME_MESSAGE_BACKGROUND_COLOR);
+    mo5_font6_puts(8, 100, "Quitter la partie ? Y/N", GAME_MESSAGE_COLOR);
+    key = mo5_wait_for_key();
+    if (key == 'Y') {
+        return 1;
+    }
+    
+    mo5_fill_rect(7, 90, 25, 26, GAME_BACKGROUND_COLOR);
+    game_redraw_enemies_and_bullets();
+    return 0;
 }
 
 void game_loop(void) {
@@ -152,6 +176,12 @@ void game_loop(void) {
                 break;
             case ' ':
                 game_fire_player_bullet();
+                break;
+            case 'P':
+                if (game_quit_game() == 1) {
+                    return;
+                }
+
                 break;
         }
 

@@ -28,6 +28,8 @@
 #include <mo5_video.h>
 
 #define GAME_BACKGROUND_COLOR         C_BLACK
+#define GAME_MESSAGE_BACKGROUND_COLOR C_BLUE
+#define GAME_MESSAGE_COLOR            C_YELLOW
 
 void game_loop(void);
 
