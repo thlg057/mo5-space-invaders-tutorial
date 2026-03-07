@@ -1,114 +1,211 @@
-# 🕹️ Thomson MO5 Project Template
+# Développer un Space Invaders pour Thomson MO5 en C avec CMOC
 
-Ce dépôt est un modèle (template) pour le développement de logiciels et de jeux pour le **Thomson MO5** en langage C.  
-Il automatise l'installation de l'environnement, la gestion du SDK et la création d'images disques bootables.
+Ce tutorial montre comment développer un shoot'em up vertical sur Thomson MO5, etape par etape, en C compile avec CMOC. Chaque etape correspond a un tag Git.
 
-## 📁 Structure du Projet
+## Prerequis
 
-- **src/** : Contient le code source de votre application (ex: `main.c`).
-- **tools/** : Répertoire généré contenant le SDK (bibliothèques et headers) ainsi que les utilitaires de conversion.
-- **bin/** : Contient l'exécutable `.BIN` après compilation.
-- **output/** : Contient les images disquettes finales au format `.fd` et `.sd`.
+- CMOC installe et fonctionnel
+- Emulateur MO5 (par exemple YAME)
+- Repo de base : `https://github.com/thlg057/mo5_template`
+- Notions de base en C (pointeurs, tableaux statiques)
 
-## 🛠️ Prérequis
+## La machine
 
-- **CMOC** : Le compilateur C pour processeur 6809.
-- **Git** : Requis pour cloner les outils de dépendance lors de l'installation.
-- **Python 3 / Pillow** : Requis pour les scripts de conversion (`fd2sd.py` et `png2mo5.py`).
+| Caracteristique | Valeur |
+|---|---|
+| CPU | Motorola 6809 @ ~1 MHz |
+| RAM utile | 48 Ko |
+| Resolution | 320x200 pixels |
+| Couleurs | 16 couleurs |
+| Compilateur | CMOC (C pour 6809) |
 
-### 📦 Installation sur GitHub Codespaces
+Deux regles fondamentales s'appliquent a tout le code.
 
-Si vous utilisez GitHub Codespaces, vous pouvez installer automatiquement tous les prérequis avec :
+**Pas de malloc.** Toute la memoire est allouee statiquement a la compilation. Les tableaux d'ennemis, de balles, de sprites -- tout est dimensionne a l'avance avec des `#define`.
+
+**Pas de float, pas de division si possible.** Le 6809 ne dispose pas d'unite virgule flottante. On prefere les decalages (`>> 1` au lieu de `/ 2`) et l'arithmetique sur `unsigned char` (8 bits natifs) plutot que `int` (16 bits).
+
+## Contrainte graphique : 2 couleurs par bloc de 8 pixels
+
+La VRAM du MO5 est organisee en deux banques selectionnees via le registre `PRC` :
+
+- **Banque couleur** : chaque octet encode la couleur de fond (bits 0-3) et la couleur de forme (bits 4-7) pour un groupe de 8 pixels horizontaux.
+- **Banque forme** : chaque bit correspond a un pixel -- `1` affiche la couleur de forme, `0` affiche la couleur de fond.
+
+Un groupe de 8 pixels ne peut afficher que **2 couleurs**. Les sprites respectent cette contrainte en variant les couleurs ligne par ligne. Le script `png2mo5.py` verifie et encode cette regle lors de la generation des `.h`.
+
+## SDK maison
+
+| Fichier | Role |
+|---|---|
+| `mo5_defs.h` | Registres hardware, palette, dimensions ecran |
+| `mo5_video.h` | Init video, clear ecran, fill rectangle |
+| `mo5_sprite_bg.h` | Sprites transparents (fond conserve) |
+| `mo5_sprite_form.h` | Sprites forme seule |
+| `mo5_sprite.h` | Sprites opaques |
+| `mo5_actor_dr.h` | Dirty rectangle : save/restore zone VRAM |
+| `mo5_font6.h` | Affichage de texte - 6 pixels de haut |
+| `mo5_font8.h` | Affichage de texte - 8 pixels de haut |
+
+Pipeline de conversion sprite :
 
 ```bash
+make convert IMG=./assets/player.png
+# genere include/assets/player.h
+```
+
+Pour ce projet, on utilisera les fonctions de mo5_sprite_bg.h, qui permettent de gérer la transparence (le fond est celui du décor)
+
+### Sprites disponibles
+
+| Fichier | Taille | Description |
+|---|---|---|
+| `player.png` | 24x24 | Vaisseau joueur, bleu/rouge/jaune |
+| `enemy.png` | 16x16 | Alien insecte, vert/jaune |
+| `bullet_player.png` | 8x8 | Tir joueur, cyan/blanc |
+| `bullet_enemy.png` | 8x8 | Tir ennemi, rouge/orange |
+
+### Structures de donnees
+
+`unsigned char` partout ou la valeur tient sur 8 bits.
+
+```c
+typedef struct {
+    MO5_Actor     actor;
+    unsigned char active;
+} ActiveActor;
+
+typedef struct {
+    MO5_Actor     actor;
+    unsigned char active;
+    unsigned char hp;
+} EnemyActor;
+```
+
+Les coordonnees `x` sont en **octets** (1 unite = 8 pixels), les coordonnees `y` sont en **pixels**. Cette distinction est imposee par la VRAM.
+
+## Architecture du jeu
+
+Le jeu repose sur une boucle principale simple :
+
+1.  Lecture des entrées clavier
+2.  Mise à jour joueur
+3.  Mise à jour balles
+4.  Mise à jour ennemis
+5.  Détection collisions
+6.  Attente VBL
+7.  Dessin
+
+Principe fondamental MO5 :
+
+-   Pas d'allocation dynamique
+-   Structures statiques dimensionnées à la compilation
+-   Utilisation prioritaire de `unsigned char`
+-   Synchronisation à 50 Hz (PAL)
+
+## Organisation des sources
+
+Structure du projet :
+
+    mo5-spaceinvaders/
+    ├── Makefile
+    ├── src/
+    │   ├── main.c
+    │   └── game.c
+    ├── include/
+    │   ├── game.h
+    │   └── assets/
+    │       ├── player.h
+    │       ├── enemy.h
+    │       ├── bullet_player.h
+    │       └── bullet_enemy.h
+    ├── assets/
+    │   ├── player.png
+    │   ├── enemy.png
+    │   ├── bullet_player.png
+    │   └── bullet_enemy.png
+    ├── output/
+    └── tools/
+
+### Rôles
+
+-   **main.c** : point d'entrée minimal (initialisation + appel `game_loop()`)
+-   **game.c** : toute la logique du jeu (moteur, update, collisions, HUD)
+-   **game.h** : interface publique minimale (`void game_loop(void);`)
+-   **include/assets/** : sprites générés automatiquement depuis les PNG
+
+## Utilisation avec GitHub Codespaces
+
+### Créer un Codespace
+
+Depuis le dépôt GitHub : - Cliquer sur **use this tempalte** et sélectionner **Open in a codespace**
+
+### Installer l'environnement
+
+Dans le terminal :
+
+``` bash
 make setup-codespace
 ```
 
-Cette commande installe :
-- **flex** (requis pour lwtools)
-- **Pillow** (bibliothèque Python pour la conversion d'images)
-- **lwtools** (assembleur 6809)
-- **CMOC** (compilateur C pour 6809)
-- **Python 3 / Pillow** : Requis pour le script de traitement d'image `png2mo5.py`.
+Cette commande installe automatiquement :
 
-## 🚀 Configuration et Compilation
+-   CMOC (compilateur C 6809)
+-   lwtools (assembleur)
+-   Python 3 + Pillow
+-   Dépendances nécessaires au SDK
 
-### 1. Personnalisation
+### Installation du SDK
 
-Ouvrez le fichier `Makefile` à la racine du projet et modifiez la variable suivante pour définir le nom de votre programme :
+Une seule fois où après une mise à jour du SDK.
 
-```makefile
-PROGRAM := MYAPP
-```
-
-(Remplacez `MYAPP` par le nom souhaité.)
-
-### 2. Installation de l'environnement
-
-Avant de compiler pour la première fois, lancez la commande suivante pour configurer le SDK et les outils système :
-
-```bash
+``` bash
 make install
 ```
 
-Cette commande :
-- télécharge et utilise le projet **BootFloppyDisk** pour la génération des images disquettes bootables  
-  👉 https://github.com/OlivierP-To8/BootFloppyDisk.git
-- compile le **sdk_mo5**, basé sur le code *helper* développé pour faciliter le développement sur Thomson MO5  
-  👉 https://github.com/thlg057/sdk_mo5.git
-- exporte l'ensemble des fichiers nécessaires dans le dossier `tools/`
+Cela : - Télécharge BootFloppyDisk - Compile le sdk_mo5 - Installe les outils dans `tools/`
 
-### 3. Compilation du projet
+### Build du projet et génération des images *
 
-Pour générer votre programme et les images disques, utilisez simplement :
-
-```bash
+``` bash
 make
 ```
 
-Cette action va compiler votre code source, le lier à la bibliothèque SDK et créer les fichiers de stockage dans le dossier `output/`.
+## Tags Git
 
-## 📖 Utilisation du SDK
+| Tag | Contenu |
+|---|---|
+| `step-01-player` | Joueur, deplacement, tirs joueur |
+| `step-02-score` | HUD score et vies |
+| `step-03-enemies` | Ennemis, formation, tirs ennemis |
+| `step-04-collisions` | Collisions, points de vie, game over |
 
-Le SDK **mo5_sdk** s'appuie sur le code *helper* du projet **sdk_mo5**, qui regroupe un ensemble de fonctions que j’ai développées pour simplifier et accélérer le développement sur Thomson MO5.
+## Etape 1 -- `step-01-player` -- Joueur, deplacement et tirs
 
-Pour utiliser ces fonctions dans votre code, incluez les fichiers d'en-tête exportés :
+Afficher le vaisseau joueur en bas de l'ecran, le deplacer avec `Q`/`D`, et tirer des balles vers le haut avec `Espace`.
 
-```c
-#include <mo5_stdio.h>
-#include <mo5_defs.h>
-```
+## Etape 2 -- `step-02-score` -- Affichage du score
 
-Le `Makefile` s'occupe automatiquement d'inclure les chemins (`-Itools/include`) et de lier la bibliothèque statique (`tools/lib/libsdk_mo5.a`) lors de la compilation.
+Afficher le score et les vies en haut de l'ecran, mis a jour a chaque evenement (ennemi detruit, vie perdue).
 
-## 🎨 Conversion d'Images PNG en Sprites
+## Etape 3 -- `step-03-enemies` -- Ennemis et leurs tirs
 
-Le projet inclut un script Python qui transforme une image PNG en fichier `.h` contenant la définition C du sprite correspondant.
+Afficher une vague d'ennemis en formation, les faire osciller horizontalement, descendre au rebord, et tirer periodiquement.
 
-Pour convertir une image :
+## Etape 4 -- `step-04-collisions` -- Collisions, points de vie et fin de partie
 
-```bash
-make convert IMG=./assets/sprite.png
-```
+Detecter les impacts, gerer les points de vie, l'invincibilite temporaire du joueur, le game over et la victoire.
 
-Cette commande :
-- Analyse l'image PNG et détecte automatiquement les couleurs (2 couleurs par groupe de 8 pixels)
-- Génère automatiquement le fichier `include/assets/sprite1.h` avec la définition du sprite
-- Crée les répertoires nécessaires si besoin
-- Préserve la structure de dossiers (ex: `./assets/perso/hero.png` → `./include/assets/perso/hero.h`)
 
-Le fichier généré contient :
-- Les données de **FORME** (bitmap 1 bit/pixel)
-- Les données de **COULEUR** (attributs par groupe de 8 pixels)
-- Les commentaires avec visualisation ASCII du sprite
+## Recapitulatif des optimisations MO5
 
-Vous pouvez ensuite inclure le fichier généré dans votre code :
-
-```c
-#include "assets/sprite1.h"
-```
-
-## 🧹 Nettoyage
-
-- `make clean` : Supprime les fichiers de build du projet (fichiers objets, binaires et images disques).
-- `make clean-all` : Supprime tout le projet ainsi que le dossier `tools/` (SDK et outils inclus).
+| Regle | Pourquoi |
+|---|---|
+| `unsigned char` plutot que `int` | Operations 8 bits natives sur 6809 |
+| `while (n--)` plutot que `for (i=0; i<n; i++)` | Flag Z automatique apres decrementation |
+| `*p++` plutot que `tab[i]` | `LEAX 1,X` au lieu d'un calcul d'index |
+| `static` sur les fonctions internes | Inlining possible, symboles non exportes |
+| Compteur de frames pour les vitesses | Independant du nombre de sprites actifs |
+| Pas de `row_offsets[]` | Economise 400 octets RAM |
+| Flag `score_dirty` pour le HUD | Redessinage uniquement en cas de changement |
+| `#define` internes dans `game.c` | Pas dans `game.h` si personne d'autre n'en a besoin |

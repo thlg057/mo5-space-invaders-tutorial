@@ -22,14 +22,13 @@
  * SOFTWARE.
  */
 
-#include <cmoc.h>
+#ifndef GAME_H
+#define GAME_H
+
 #include <mo5_video.h>
-#include "game.h"
 
-int main(void)
-{
-    mo5_video_init(COLOR(GAME_BACKGROUND_COLOR, GAME_BACKGROUND_COLOR));
-    game_loop();
-    return 0;
-}
+#define GAME_BACKGROUND_COLOR         C_BLACK
 
+void game_loop(void);
+
+#endif /* GAME_H */
