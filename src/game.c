@@ -28,6 +28,7 @@
 #include "game.h"
 #include "assets/player.h"
 #include "assets/bullet_player.h"
+#include "assets/enemy.h"
 
 // always : x -> octets, y -> pixels
 #define DRAWING_BLOC_HIGH   6 //pixels
@@ -35,6 +36,12 @@
 #define BULLET_SPEED_Y      4 //pixels
 #define MAX_BULLETS_PLAYER  3
 #define PLAYER_MAX_LIFE     3
+#define ENEMY_COUNT         4
+#define ENEMY_DIRECTION_RIGHT 1
+#define ENEMY_DIRECTION_LEFT  2
+#define ENEMY_SPEED_X       1 //octet
+#define ENEMY_SPEED_Y       4 //pixels
+#define ENEMY_FRAME_SPEED   8
 
 typedef struct {
     MO5_Actor      actor;
@@ -43,9 +50,13 @@ typedef struct {
 
 static MO5_Sprite  player_sprite        = SPRITE_PLAYER_INIT;
 static MO5_Sprite  bullet_player_sprite = SPRITE_BULLET_PLAYER_INIT;
+static MO5_Sprite enemy_sprite         = SPRITE_ENEMY_INIT;
 
 static MO5_Actor   player;
 static ActiveActor bullets_player[MAX_BULLETS_PLAYER];
+static ActiveActor enemies[ENEMY_COUNT];
+
+static unsigned char enemy_direction = ENEMY_DIRECTION_RIGHT;
 
 static void game_init_player(void)
 {
@@ -99,8 +110,82 @@ static void game_update_palyer_bullets(void)
     }
 }
 
+static void game_init_enemies(void)
+{
+    unsigned char i;
+    unsigned char spacing = (SCREEN_WIDTH_BYTES - (ENEMY_COUNT * SPRITE_ENEMY_WIDTH_BYTES)) / (ENEMY_COUNT + 1);
+
+    for (i = 0; i < ENEMY_COUNT; i++) {
+        enemies[i].active       = 1;
+        enemies[i].actor.sprite = &enemy_sprite;
+        enemies[i].actor.pos.x = spacing + i * (SPRITE_ENEMY_WIDTH_BYTES + spacing);
+        enemies[i].actor.pos.y = DRAWING_BLOC_HIGH;
+        enemies[i].actor.old_pos = enemies[i].actor.pos;
+    }
+}
+
+static void game_update_enemies(void)
+{
+    unsigned char i;
+    unsigned char need_reverse = 0;
+    unsigned char new_x;
+    unsigned char new_y;
+
+    /* Détection rebord */
+    for (i = 0; i < ENEMY_COUNT; i++) {
+        if (!enemies[i].active) continue;
+
+        if (enemy_direction == ENEMY_DIRECTION_RIGHT) {
+            if (enemies[i].actor.pos.x + SPRITE_ENEMY_WIDTH_BYTES >= SCREEN_WIDTH_BYTES) {
+                need_reverse = 1;
+                break;
+            }
+        } else {
+            if (enemies[i].actor.pos.x == 0) {
+                need_reverse = 1;
+                break;
+            }
+        }
+    }
+
+    if (need_reverse)
+        enemy_direction = (enemy_direction == ENEMY_DIRECTION_RIGHT)
+                        ? ENEMY_DIRECTION_LEFT
+                        : ENEMY_DIRECTION_RIGHT;
+
+    /* Déplacement */
+    for (i = 0; i < ENEMY_COUNT; i++) {
+        if (!enemies[i].active) continue;
+
+        new_x = enemies[i].actor.pos.x;
+        new_y = enemies[i].actor.pos.y;
+
+        if (enemy_direction == ENEMY_DIRECTION_RIGHT)
+            new_x += ENEMY_SPEED_X;
+        else
+            new_x -= ENEMY_SPEED_X;
+
+        if (need_reverse)
+            new_y += ENEMY_SPEED_Y;
+
+        if (new_y + SPRITE_ENEMY_HEIGHT >= SCREEN_HEIGHT) {
+            mo5_actor_clear_bg(&enemies[i].actor);
+            enemies[i].active = 0;
+            continue;
+        }
+
+        mo5_actor_move_bg(&enemies[i].actor, new_x, new_y);
+    }
+}
+
 static void game_redraw_enemies_and_bullets() {
     unsigned char i;
+
+    for (i = 0; i < ENEMY_COUNT; i++) {
+        if (enemies[i].active) {
+            mo5_actor_draw_bg(&enemies[i].actor);
+        }
+    }
 
     for (i = 0; i < MAX_BULLETS_PLAYER; i++) {
         if (bullets_player[i].active) {
@@ -160,20 +245,29 @@ void game_ready_to_start() {
 void game_loop(void) {
     const unsigned char max_x = SCREEN_WIDTH_BYTES - SPRITE_PLAYER_WIDTH_BYTES;;
     char key;
-    unsigned char new_x, score, live;
+    unsigned char i, new_x, score, live;
+    unsigned char enemies_tick;
 
     game_init_player();
+    game_init_enemies();
     
     new_x = player.pos.x;
     score = 0;
     live = PLAYER_MAX_LIFE;
+    enemies_tick = 0;
 
-    mo5_actor_draw_bg(&player);
     game_display_score(score);
     game_display_live(live);
+    mo5_actor_draw_bg(&player);
+    for (i = 0; i < ENEMY_COUNT; i++) {
+        if (enemies[i].active) {
+            mo5_actor_draw_bg(&enemies[i].actor);
+        }
+    }
 
     game_ready_to_start();
     while(1) {
+        enemies_tick++;
         key = mo5_getchar();
         switch (key) {
             case 'Q':
@@ -194,6 +288,11 @@ void game_loop(void) {
         }
 
         mo5_wait_vbl();
+        if (enemies_tick == ENEMY_FRAME_SPEED) {
+            enemies_tick = 0;
+            game_update_enemies();
+        }
+
         game_update_palyer_bullets();
         mo5_actor_move_bg(&player, new_x, player.pos.y);
     }
