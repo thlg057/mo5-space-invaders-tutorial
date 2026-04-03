@@ -37,6 +37,7 @@
 #define BULLET_SPEED_Y      4 //pixels
 #define MAX_BULLETS_PLAYER  3
 #define PLAYER_MAX_LIFE     3
+#define PLAYER_MAX_SCORE    50
 #define ENEMY_COUNT         4
 #define ENEMY_DIRECTION_RIGHT 1
 #define ENEMY_DIRECTION_LEFT  2
@@ -45,6 +46,8 @@
 #define ENEMY_FRAME_SPEED   8
 #define MAX_BULLETS_ENEMIES 4
 #define BULLET_FRAME_SPEED  10
+#define PLAYER_INVINCIBLE_FRAMES  60
+#define GAME_OVER           2
 
 typedef struct {
     MO5_Actor      actor;
@@ -63,6 +66,20 @@ static ActiveActor bullets_enemies[MAX_BULLETS_ENEMIES];
 
 static unsigned char enemy_direction = ENEMY_DIRECTION_RIGHT;
 static unsigned char rand_seed = 1;
+static unsigned char player_invincible = 0;
+static unsigned char g_score;
+static unsigned char g_live;
+static unsigned char g_score_dirty;
+static unsigned char g_live_dirty;
+
+static unsigned char collide(unsigned char ax, unsigned char ay,
+                              unsigned char aw, unsigned char ah,
+                              unsigned char bx, unsigned char by,
+                              unsigned char bw, unsigned char bh)
+{
+    return (ax < bx + bw) && (ax + aw > bx) &&
+           (ay < by + bh) && (ay + ah > by);
+}
 
 static unsigned char pseudo_rand(void)
 {
@@ -267,29 +284,32 @@ static void game_redraw_enemies_and_bullets() {
     }
 }
 
-static void game_display_score(unsigned char score) {
+static void game_display_score() {
     // sprintf fait planter le programme.
     // char buf[12];
-    // sprintf(buf, "SCORE: %03u", score);
+    // sprintf(buf, "g_score: %03u", g_score);
     // mo5_font6_puts(0, 0, buf, C_BLUE);
     char buf[4];
-    buf[0] = '0' + (score / 100);
-    buf[1] = '0' + (score % 100 / 10);
-    buf[2] = '0' + (score % 10);
+    buf[0] = '0' + (g_score / 100);
+    buf[1] = '0' + (g_score % 100 / 10);
+    buf[2] = '0' + (g_score % 10);
     buf[3] = '\0';
 
-    mo5_font6_puts(0, 0, "SCORE:", C_BLUE);
+    mo5_fill_rect(0, 0, 9, 6, GAME_BACKGROUND_COLOR);
+    mo5_font6_puts(0, 0, "score:", C_BLUE);
     mo5_font6_puts(6, 0, buf, C_BLUE);
 }
 
-static void game_display_live(unsigned char live) {
+static void game_display_live() {
     // sprintf fait planter le programme.
     // char buf[7];
-    // sprintf(buf, "VIE: %u", live);
+    // sprintf(buf, "VIE: %u", g_live);
     // mo5_font6_puts(35, 0, buf, C_BLUE);
     char buf[2];
-    buf[0] = '0' + live;
+    buf[0] = '0' + g_live;
     buf[1] = '\0';
+
+    mo5_fill_rect(35, 0, 5, 6, GAME_BACKGROUND_COLOR);
     mo5_font6_puts(35, 0, "VIE:", C_BLUE);
     mo5_font6_puts(39, 0, buf, C_BLUE);
 }
@@ -315,23 +335,132 @@ void game_ready_to_start() {
     mo5_fill_rect(7, 90, 26, 26, GAME_BACKGROUND_COLOR);
 }
 
+static unsigned char game_check_collisions()
+{
+    unsigned char i, j;
+    unsigned char active_enemies;
+
+    active_enemies = 0;
+
+    /* --- Tirs joueur vs ennemis --- */
+    for (i = 0; i < MAX_BULLETS_PLAYER; i++) {
+        if (!bullets_player[i].active) continue;
+        for (j = 0; j < ENEMY_COUNT; j++) {
+            if (!enemies[j].active) continue;
+            if (collide(bullets_player[i].actor.pos.x,
+                        bullets_player[i].actor.pos.y,
+                        SPRITE_BULLET_PLAYER_WIDTH_BYTES,
+                        SPRITE_BULLET_PLAYER_HEIGHT,
+                        enemies[j].actor.pos.x,
+                        enemies[j].actor.pos.y,
+                        SPRITE_ENEMY_WIDTH_BYTES,
+                        SPRITE_ENEMY_HEIGHT))
+            {
+                mo5_actor_clear_bg(&bullets_player[i].actor);
+                bullets_player[i].active = 0;
+                mo5_actor_clear_bg(&enemies[j].actor);
+                enemies[j].active = 0;
+                g_score++;
+                g_score_dirty = 1;
+                break;
+            }
+        }
+    }
+
+    /* --- Tirs ennemis vs joueur --- */
+    if (player_invincible == 0) {
+        for (i = 0; i < MAX_BULLETS_ENEMIES; i++) {
+            if (!bullets_enemies[i].active) continue;
+            if (collide(bullets_enemies[i].actor.pos.x,
+                        bullets_enemies[i].actor.pos.y,
+                        SPRITE_BULLET_ENEMY_WIDTH_BYTES,
+                        SPRITE_BULLET_ENEMY_HEIGHT,
+                        player.pos.x,
+                        player.pos.y,
+                        SPRITE_PLAYER_WIDTH_BYTES,
+                        SPRITE_PLAYER_HEIGHT))
+            {
+                mo5_actor_clear_bg(&bullets_enemies[i].actor);
+                bullets_enemies[i].active = 0;
+                g_live--;
+                g_live_dirty = 1;
+                player_invincible = PLAYER_INVINCIBLE_FRAMES;
+                if (g_live == 0) return GAME_OVER;
+                break;
+            }
+        }
+    }
+
+    /* --- Ennemis vs joueur (contact direct) --- */
+    if (player_invincible == 0) {
+        for (i = 0; i < ENEMY_COUNT; i++) {
+            if (!enemies[i].active) continue;
+            if (collide(enemies[i].actor.pos.x,
+                        enemies[i].actor.pos.y,
+                        SPRITE_ENEMY_WIDTH_BYTES,
+                        SPRITE_ENEMY_HEIGHT,
+                        player.pos.x,
+                        player.pos.y,
+                        SPRITE_PLAYER_WIDTH_BYTES,
+                        SPRITE_PLAYER_HEIGHT))
+            {
+                g_live--;
+                g_live_dirty = 1;
+                player_invincible = PLAYER_INVINCIBLE_FRAMES;
+                if (g_live == 0) return GAME_OVER;
+                break;
+            }
+        }
+    }
+
+    /* --- Victoire : plus aucun ennemi actif --- */
+    // for (i = 0; i < ENEMY_COUNT; i++) {
+    //     if (enemies[i].active) { active_enemies = 1; break; }
+    // }
+    // if (!active_enemies) return 1;
+
+    return 0;
+}
+
+static void game_show_game_over()
+{
+    char buf[4];
+
+    mo5_fill_rect(7, 90, 25, 26, GAME_MESSAGE_BACKGROUND_COLOR);
+    mo5_font6_puts(15, 95,  "GAME OVER",       GAME_MESSAGE_LOSE_COLOR);
+    mo5_font6_puts(8, 107, "Press space to continue",   GAME_MESSAGE_COLOR);
+    mo5_wait_key(' ');
+}
+
+static void game_show_victory()
+{
+    char buf[4];
+
+    mo5_fill_rect(7, 90, 25, 26, GAME_MESSAGE_BACKGROUND_COLOR);
+    mo5_font6_puts(15, 95,  "VICTOIRE !",       GAME_MESSAGE_WIN_COLOR);
+    mo5_font6_puts(8, 107, "Press space to continue",   GAME_MESSAGE_COLOR);
+    mo5_wait_key(' ');
+}
+
 void game_loop(void) {
     const unsigned char max_x = SCREEN_WIDTH_BYTES - SPRITE_PLAYER_WIDTH_BYTES;;
     char key;
-    unsigned char i, new_x, score, live;
+    unsigned char i, new_x, result;
     unsigned char enemies_tick, bullets_tick;
 
     game_init_player();
     game_init_enemies();
     
     new_x = player.pos.x;
-    score = 0;
-    live = PLAYER_MAX_LIFE;
+    g_score = 0;
+    g_live  = PLAYER_MAX_LIFE;
+    g_score_dirty = 0;
+    g_live_dirty  = 0;
     enemies_tick = 0;
     bullets_tick = 0;
 
-    game_display_score(score);
-    game_display_live(live);
+    game_display_score();
+    game_display_live();
     mo5_actor_draw_bg(&player);
     for (i = 0; i < ENEMY_COUNT; i++) {
         if (enemies[i].active) {
@@ -341,6 +470,11 @@ void game_loop(void) {
 
     game_ready_to_start();
     while(1) {
+        if (g_score == PLAYER_MAX_SCORE) {
+            game_show_victory();  
+            return;
+        }
+
         enemies_tick++;
         bullets_tick++;
         key = mo5_getchar();
@@ -377,5 +511,31 @@ void game_loop(void) {
 
         game_update_palyer_bullets();
         mo5_actor_move_bg(&player, new_x, player.pos.y);
+
+        result = game_check_collisions();
+        /* affichage score/vie ici, jamais depuis game_check_collisions */
+        if (g_score_dirty) { game_display_score(); g_score_dirty = 0; }
+        if (g_live_dirty)  { game_display_live();  g_live_dirty  = 0; }
+        //if (result == 1) { game_show_victory();  return; }
+        if (result == GAME_OVER) { game_show_game_over(); return; }
+
+        if (player_invincible > 0) {
+            player_invincible--;
+            if (player_invincible == 0) {
+                mo5_actor_draw_bg(&player); /* fin invincibilite : toujours redessiner */
+            } else if (player_invincible % 12 < 6) {
+                mo5_actor_clear_bg(&player);
+            } else {
+                mo5_actor_draw_bg(&player);
+            }
+        }
+
+        // On ressucite les morts
+        for (i = 0; i < ENEMY_COUNT; i++) {
+            if (!enemies[i].active) {
+                enemies[i].actor.pos.y = DRAWING_BLOC_HIGH;
+                enemies[i].active = 1;
+            }
+        }
     }
 }
