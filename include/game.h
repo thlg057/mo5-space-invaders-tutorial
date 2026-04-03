@@ -30,6 +30,8 @@
 #define GAME_BACKGROUND_COLOR         C_BLACK
 #define GAME_MESSAGE_BACKGROUND_COLOR C_BLUE
 #define GAME_MESSAGE_COLOR            C_YELLOW
+#define GAME_MESSAGE_WIN_COLOR        C_GREEN
+#define GAME_MESSAGE_LOSE_COLOR       C_RED
 
 void game_loop(void);
 
