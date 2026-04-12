@@ -1,46 +1,46 @@
 # Développer un Space Invaders pour Thomson MO5 en C avec CMOC
 
-Ce tutorial montre comment développer un shoot'em up vertical sur Thomson MO5, etape par etape, en C compile avec CMOC. Chaque etape correspond a un tag Git.
+Ce tutorial montre comment développer un shoot'em up vertical sur Thomson MO5, étape par étape, en C compilé avec CMOC. Chaque étape correspond à un tag Git.
 
-## Prerequis
+## Prérequis
 
-- CMOC installe et fonctionnel
-- Emulateur MO5 (par exemple YAME)
+- CMOC installé et fonctionnel
+- Émulateur MO5 (par exemple YAME)
 - Repo de base : `https://github.com/thlg057/mo5_template`
 - Notions de base en C (pointeurs, tableaux statiques)
 
 ## La machine
 
-| Caracteristique | Valeur |
+| Caractéristique | Valeur |
 |---|---|
 | CPU | Motorola 6809 @ ~1 MHz |
 | RAM utile | 48 Ko |
-| Resolution | 320x200 pixels |
+| Résolution | 320x200 pixels |
 | Couleurs | 16 couleurs |
 | Compilateur | CMOC (C pour 6809) |
 
-Deux regles fondamentales s'appliquent a tout le code.
+Deux règles fondamentales s'appliquent à tout le code.
 
-**Pas de malloc.** Toute la memoire est allouee statiquement a la compilation. Les tableaux d'ennemis, de balles, de sprites -- tout est dimensionne a l'avance avec des `#define`.
+**Pas de malloc.** Toute la mémoire est allouée statiquement à la compilation. Les tableaux d'ennemis, de balles, de sprites -- tout est dimensionné à l'avance avec des `#define`.
 
-**Pas de float, pas de division si possible.** Le 6809 ne dispose pas d'unite virgule flottante. On prefere les decalages (`>> 1` au lieu de `/ 2`) et l'arithmetique sur `unsigned char` (8 bits natifs) plutot que `int` (16 bits).
+**Pas de float, pas de division si possible.** Le 6809 ne dispose pas d'unité virgule flottante. On préfère les décalages (`>> 1` au lieu de `/ 2`) et l'arithmétique sur `unsigned char` (8 bits natifs) plutôt que `int` (16 bits).
 
 ## Contrainte graphique : 2 couleurs par bloc de 8 pixels
 
-La VRAM du MO5 est organisee en deux banques selectionnees via le registre `PRC` :
+La VRAM du MO5 est organisée en deux banques sélectionnées via le registre `PRC` :
 
 - **Banque couleur** : chaque octet encode la couleur de fond (bits 0-3) et la couleur de forme (bits 4-7) pour un groupe de 8 pixels horizontaux.
-- **Banque forme** : chaque bit correspond a un pixel -- `1` affiche la couleur de forme, `0` affiche la couleur de fond.
+- **Banque forme** : chaque bit correspond à un pixel -- `1` affiche la couleur de forme, `0` affiche la couleur de fond.
 
-Un groupe de 8 pixels ne peut afficher que **2 couleurs**. Les sprites respectent cette contrainte en variant les couleurs ligne par ligne. Le script `png2mo5.py` verifie et encode cette regle lors de la generation des `.h`.
+Un groupe de 8 pixels ne peut afficher que **2 couleurs**. Les sprites respectent cette contrainte en variant les couleurs ligne par ligne. Le script `png2mo5.py` vérifie et encode cette règle lors de la génération des `.h`.
 
 ## SDK maison
 
-| Fichier | Role |
+| Fichier | Rôle |
 |---|---|
-| `mo5_defs.h` | Registres hardware, palette, dimensions ecran |
-| `mo5_video.h` | Init video, clear ecran, fill rectangle |
-| `mo5_sprite_bg.h` | Sprites transparents (fond conserve) |
+| `mo5_defs.h` | Registres hardware, palette, dimensions écran |
+| `mo5_video.h` | Init video, clear écran, fill rectangle |
+| `mo5_sprite_bg.h` | Sprites transparents (fond conservé) |
 | `mo5_sprite_form.h` | Sprites forme seule |
 | `mo5_sprite.h` | Sprites opaques |
 | `mo5_actor_dr.h` | Dirty rectangle : save/restore zone VRAM |
@@ -51,7 +51,7 @@ Pipeline de conversion sprite :
 
 ```bash
 make convert IMG=./assets/player.png
-# genere include/assets/player.h
+# génère include/assets/player.h
 ```
 
 Pour ce projet, on utilisera les fonctions de mo5_sprite_bg.h, qui permettent de gérer la transparence (le fond est celui du décor)
@@ -65,9 +65,9 @@ Pour ce projet, on utilisera les fonctions de mo5_sprite_bg.h, qui permettent de
 | `bullet_player.png` | 8x8 | Tir joueur, cyan/blanc |
 | `bullet_enemy.png` | 8x8 | Tir ennemi, rouge/orange |
 
-### Structures de donnees
+### Structures de données
 
-`unsigned char` partout ou la valeur tient sur 8 bits.
+`unsigned char` partout où la valeur tient sur 8 bits.
 
 ```c
 typedef struct {
@@ -82,7 +82,7 @@ typedef struct {
 } EnemyActor;
 ```
 
-Les coordonnees `x` sont en **octets** (1 unite = 8 pixels), les coordonnees `y` sont en **pixels**. Cette distinction est imposee par la VRAM.
+Les coordonnées `x` sont en **octets** (1 unité = 8 pixels), les coordonnées `y` sont en **pixels**. Cette distinction est imposée par la VRAM.
 
 ## Architecture du jeu
 
@@ -138,7 +138,7 @@ Structure du projet :
 
 ### Créer un Codespace
 
-Depuis le dépôt GitHub : - Cliquer sur **use this tempalte** et sélectionner **Open in a codespace**
+Depuis le dépôt GitHub : - Cliquer sur **use this template** et sélectionner **Open in a codespace**
 
 ### Installer l'environnement
 
@@ -157,7 +157,7 @@ Cette commande installe automatiquement :
 
 ### Installation du SDK
 
-Une seule fois où après une mise à jour du SDK.
+Une seule fois ou après une mise à jour du SDK.
 
 ``` bash
 make install
@@ -175,37 +175,37 @@ make
 
 | Tag | Contenu |
 |---|---|
-| `step-01-player` | Joueur, deplacement, tirs joueur |
+| `step-01-player` | Joueur, déplacement, tirs joueur |
 | `step-02-score` | HUD score et vies |
 | `step-03-enemies` | Ennemis, formation, tirs ennemis |
 | `step-04-collisions` | Collisions, points de vie, game over |
 
-## Etape 1 -- `step-01-player` -- Joueur, deplacement et tirs
+## Étape 1 -- `step-01-player` -- Joueur, déplacement et tirs
 
-Afficher le vaisseau joueur en bas de l'ecran, le deplacer avec `Q`/`D`, et tirer des balles vers le haut avec `Espace`.
+Afficher le vaisseau joueur en bas de l'écran, le déplacer avec `Q`/`D`, et tirer des balles vers le haut avec `Espace`.
 
-## Etape 2 -- `step-02-score` -- Affichage du score
+## Étape 2 -- `step-02-score` -- Affichage du score
 
-Afficher le score et les vies en haut de l'ecran, mis a jour a chaque evenement (ennemi detruit, vie perdue).
+Afficher le score et les vies en haut de l'écran, mis à jour à chaque événement (ennemi détruit, vie perdue).
 
-## Etape 3 -- `step-03-enemies` -- Ennemis et leurs tirs
+## Étape 3 -- `step-03-enemies` -- Ennemis et leurs tirs
 
-Afficher une vague d'ennemis en formation, les faire osciller horizontalement, descendre au rebord, et tirer periodiquement.
+Afficher une vague d'ennemis en formation, les faire osciller horizontalement, descendre au rebord, et tirer périodiquement.
 
-## Etape 4 -- `step-04-collisions` -- Collisions, points de vie et fin de partie
+## Étape 4 -- `step-04-collisions` -- Collisions, points de vie et fin de partie
 
-Detecter les impacts, gerer les points de vie, l'invincibilite temporaire du joueur, le game over et la victoire.
+Détecter les impacts, gérer les points de vie, l'invincibilité temporaire du joueur, le game over et la victoire.
 
 
-## Recapitulatif des optimisations MO5
+## Récapitulatif des optimisations MO5
 
-| Regle | Pourquoi |
+| Règle | Pourquoi |
 |---|---|
-| `unsigned char` plutot que `int` | Operations 8 bits natives sur 6809 |
-| `while (n--)` plutot que `for (i=0; i<n; i++)` | Flag Z automatique apres decrementation |
-| `*p++` plutot que `tab[i]` | `LEAX 1,X` au lieu d'un calcul d'index |
-| `static` sur les fonctions internes | Inlining possible, symboles non exportes |
-| Compteur de frames pour les vitesses | Independant du nombre de sprites actifs |
-| Pas de `row_offsets[]` | Economise 400 octets RAM |
+| `unsigned char` plutôt que `int` | Opérations 8 bits natives sur 6809 |
+| `while (n--)` plutôt que `for (i=0; i<n; i++)` | Flag Z automatique après décrémentation |
+| `*p++` plutôt que `tab[i]` | `LEAX 1,X` au lieu d'un calcul d'index |
+| `static` sur les fonctions internes | Inlining possible, symboles non exportés |
+| Compteur de frames pour les vitesses | Indépendant du nombre de sprites actifs |
+| Pas de `row_offsets[]` | Économise 400 octets RAM |
 | Flag `score_dirty` pour le HUD | Redessinage uniquement en cas de changement |
 | `#define` internes dans `game.c` | Pas dans `game.h` si personne d'autre n'en a besoin |
